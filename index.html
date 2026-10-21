@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
 <title>デュエマ値段メモ</title>
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <style>
@@ -47,7 +48,7 @@ const save = () => {
   try { localStorage.setItem(KEY, JSON.stringify(cards)); }
   catch(e){ alert('保存容量がいっぱいです。写真を減らしてください。'); }
 };
-const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const list = document.getElementById('list');
 
 function render(){
@@ -60,7 +61,7 @@ function render(){
     div.className = 'card';
     div.dataset.i = i;
     div.innerHTML = `
-      ${c.photo ? `<img src="${c.photo}">` : ''}
+      ${c.photo ? `<img src="${esc(c.photo)}" referrerpolicy="no-referrer" onerror="this.style.display='none'">` : ''}
       <div class="name"><span class="handle">☰</span>${esc(c.name)}</div>
       ${c.prices.map((p, j) => `
         <div class="shop ${p.price === min ? 'cheap' : ''}">
@@ -75,6 +76,7 @@ function render(){
       <div class="tools">
         <button class="sub" onclick="document.getElementById('f${i}').click()">📷 写真</button>
         <input type="file" id="f${i}" accept="image/*" hidden onchange="setPhoto(${i}, this)">
+        <button class="sub" onclick="setImageUrl(${i})">🔗 画像URL</button>
         <button class="sub" onclick="openOfficial(${i})">公式で検索</button>
         <button class="sub" onclick="delCard(${i})">削除</button>
       </div>`;
@@ -112,6 +114,14 @@ function setPhoto(i, input){
     save(); render();
   };
   img.src = URL.createObjectURL(file);
+}
+function setImageUrl(i){
+  const url = prompt('公式サイトのカード画像を長押しして「画像アドレスをコピー」し、ここに貼り付けてください', '');
+  if (url === null) return;
+  const u = url.trim();
+  if (u === '') { cards[i].photo = null; save(); render(); return; }
+  if (!/^https:\/\//.test(u)) { alert('https:// で始まるURLを貼り付けてください'); return; }
+  cards[i].photo = u; save(); render();
 }
 function openOfficial(i){
   const q = encodeURIComponent('site:dm.takaratomy.co.jp/card ' + cards[i].name);
