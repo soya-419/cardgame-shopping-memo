@@ -3,9 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-
+<title>デュエマ値段メモ</title>
 <style>
   body{font-family:sans-serif;margin:0;background:#f4f4f7;color:#222}
   header{background:#c0392b;color:#fff;padding:12px;font-size:18px;font-weight:bold}
   main{padding:12px;max-width:600px;margin:auto}
-  input,button{font-size:16...
+  input,button{font-size:16px;padding:8px;border-radius:8px;border:1px solid #ccc}
+  button{background:#c0392b;color:#fff;border:none}
+  button.sub{background:#888}
+  .row{display:flex;gap:6px;margin:6px 0}
+  .row input{flex:1;min-width:0}
+  .card{background:#fff;border-radius:12px;padding:12px;margin:10px 0;box-shadow:0 1px 3px #0002}
+  .card img{width:90px;border-radius:6px;float:right;margin-left:8px}
+  .name{font-size:18px;font-weight:bold}
+  .shop{display:flex;justify-content:space-between;padding:4px 6px;border-radius:6px}
+  .cheap{background:#ffe08a;font-weight:bold}
+  .x{background:none;color:#c00;padding:0 6px}
+  .tools{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;clear:both}
+</style>
+</head>
+<body>
+<header>デュエマ値段メモ</header>
+<main>
+  <input id="search" placeholder="🔍 カード名で検索" style="width:100%;box-sizing:border-box">
+  <div class="row">
+    <input id="newName" placeholder="新しいカード名">
+    <button onclick="addCard()">追加</button>
+  </div>
+  <div id="list"></div>
+  <div class="tools">
+    <button class="sub" onclick="exportData()">バックアップ書き出し</button>
+    <button class="sub" onclick="document.getElementById('imp').click()">読み込み</button>
+    <input type="file" id="imp" accept=".json" hidden onchange="importData(this)">
+  </div>
+</main>
+<script>
+const KEY = 'dmPriceMemo';
+let cards = JSON.parse(localStorage.getItem(KEY) || '[]');
+const save = () => {
+  try { localStorage.setItem(KEY, JSON.stringify(cards)); }
+  catch(e){ alert('保存容量がいっぱいです。写真を減らしてください。'); }
+};
+const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function render(){
+  const q = document.getElementById('search').value.trim();
+  const list = document.getElementById('list');
+  list.innerHTML = '';
+  cards.forEach((c, i) => {
+    if (q && !c.name.includes(q)) return;
+    const min = c.prices.length ? Math.min(...c.prices.map(p => p.price)) : null;
+    const div = document.createElement('div');
+    div.className = 'card';
+    div.innerHTML = `
+      ${c.photo ? `<img src="${c.photo}">` : ''}
+      <div class="name">${esc(c.name)}</div>
+      ${c.prices.map((p, j) => `
+        <div class="shop ${p.price === min ? 'cheap' : ''}">
+          <span>${p.price === min ? '👑 ' : ''}${esc(p.shop)}</span>
+          <span>¥${p.price.toLocaleString()} <button class="x" onclick="delPrice(${i},${j})">✕</button></span>
+        </div>`).join('')}
+      <div class="row">
+        <input id="s${i}" placeholder="ショップ名">
+        <input id="p${i}" type="number" inputmode="numeric" placeholder="値段">
+        <button onclick="addPrice(${i})">＋</button>
+      </div>
+      <div class="tools">
+        <button class="sub" onclick="document.getElementById('f${i}').click()">📷 写真</button>
+        <input type="file" id="f${i}" accept="image/*" hidden onchange="setPhoto(${i}, this)">
+        <button class="sub" onclick="openOfficial(${i})">公式で検索</button>
+        <button class="sub" onclick="delCard(${i})">削除</button>
+      </div>`;
+    list.appendChild(div);
+  });
+}
+
+function addCard(){
+  const el = document.getElementById('newName');
+  const name = el.value.trim();
+  if (!name) return;
+  cards.unshift({name, prices: [], photo: null});
+  el.value = ''; save(); render();
+}
+function addPrice(i){
+  const shop = document.getElementById('s'+i).value.trim();
+  const price = parseInt(document.getElementById('p'+i).value);
+  if (!shop || isNaN(price)) return;
+  cards[i].prices.push({shop, price}); save(); render();
+}
+function delPrice(i, j){ cards[i].prices.splice(j, 1); save(); render(); }
+function delCard(i){
+  if (confirm(cards[i].name + ' を削除しますか?')) { cards.splice(i, 1); save(); render(); }
+}
+function setPhoto(i, input){
+  const file = input.files[0]; if (!file) return;
+  const img = new Image();
+  img.onload = () => {
+    const scale = Math.min(1, 300 / img.width);
+    const cv = document.createElement('canvas');
+    cv.width = img.width * scale; cv.height = img.height * scale;
+    cv.getContext('2d').drawImage(img, 0, 0, cv.width, cv.height);
+    cards[i].photo = cv.toDataURL('image/jpeg', 0.7);
+    save(); render();
+  };
+  img.src = URL.createObjectURL(file);
+}
+function openOfficial(i){
+  const q = encodeURIComponent('site:dm.takaratomy.co.jp/card ' + cards[i].name);
+  window.open('https://www.google.com/search?q=' + q, '_blank');
+}
+function exportData(){
+  const blob = new Blob([JSON.stringify(cards)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'dm-price-backup.json'; a.click();
+}
+function importData(input){
+  const file = input.files[0]; if (!file) return;
+  file.text().then(t => {
+    try { cards = JSON.parse(t); save(); render(); alert('読み込みました'); }
+    catch(e){ alert('ファイルが正しくありません'); }
+  });
+}
+document.getElementById('search').addEventListener('input', render);
+render();
+</script>
+</body>
+</html>
