@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<style>
+  body{font-family:sans-serif;margin:0;background:#f4f4f7;color:#222}
+  header{background:#c0392b;color:#fff;padding:12px;font-size:18px;font-weight:bold}
+  main{padding:12px;max-width:600px;margin:auto}
+  input,button{font-size:16...
