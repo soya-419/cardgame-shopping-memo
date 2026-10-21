@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>デュエマ値段メモ</title>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <style>
   body{font-family:sans-serif;margin:0;background:#f4f4f7;color:#222}
   header{background:#c0392b;color:#fff;padding:12px;font-size:18px;font-weight:bold}
@@ -16,6 +17,8 @@
   .card{background:#fff;border-radius:12px;padding:12px;margin:10px 0;box-shadow:0 1px 3px #0002}
   .card img{width:90px;border-radius:6px;float:right;margin-left:8px}
   .name{font-size:18px;font-weight:bold}
+  .handle{display:inline-block;color:#999;font-size:22px;padding:0 10px 0 0;cursor:grab;touch-action:none;user-select:none}
+  .ghost{opacity:.4}
   .shop{display:flex;justify-content:space-between;padding:4px 6px;border-radius:6px}
   .cheap{background:#ffe08a;font-weight:bold}
   .x{background:none;color:#c00;padding:0 6px}
@@ -45,19 +48,20 @@ const save = () => {
   catch(e){ alert('保存容量がいっぱいです。写真を減らしてください。'); }
 };
 const esc = s => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const list = document.getElementById('list');
 
 function render(){
   const q = document.getElementById('search').value.trim();
-  const list = document.getElementById('list');
   list.innerHTML = '';
   cards.forEach((c, i) => {
     if (q && !c.name.includes(q)) return;
     const min = c.prices.length ? Math.min(...c.prices.map(p => p.price)) : null;
     const div = document.createElement('div');
     div.className = 'card';
+    div.dataset.i = i;
     div.innerHTML = `
       ${c.photo ? `<img src="${c.photo}">` : ''}
-      <div class="name">${esc(c.name)}</div>
+      <div class="name"><span class="handle">☰</span>${esc(c.name)}</div>
       ${c.prices.map((p, j) => `
         <div class="shop ${p.price === min ? 'cheap' : ''}">
           <span>${p.price === min ? '👑 ' : ''}${esc(p.shop)}</span>
@@ -76,6 +80,7 @@ function render(){
       </div>`;
     list.appendChild(div);
   });
+  if (window.sorter) sorter.option('disabled', !!q);
 }
 
 function addCard(){
@@ -125,6 +130,17 @@ function importData(input){
     catch(e){ alert('ファイルが正しくありません'); }
   });
 }
+
+window.sorter = Sortable.create(list, {
+  handle: '.handle',
+  animation: 150,
+  ghostClass: 'ghost',
+  onEnd(){
+    const order = [...list.children].map(el => +el.dataset.i);
+    cards = order.map(k => cards[k]);
+    save(); render();
+  }
+});
 document.getElementById('search').addEventListener('input', render);
 render();
 </script>
