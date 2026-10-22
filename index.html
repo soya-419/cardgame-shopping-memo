@@ -15,6 +15,7 @@
   button.sub{background:#888}
   .row{display:flex;gap:6px;margin:6px 0}
   .row input{flex:1;min-width:0}
+  .addbox{background:#fff;border-radius:12px;padding:8px 10px;margin:10px 0;box-shadow:0 1px 3px #0002}
   .card{background:#fff;border-radius:12px;padding:12px;margin:10px 0;box-shadow:0 1px 3px #0002}
   .card img{width:90px;border-radius:6px;float:right;margin-left:8px}
   .name{font-size:18px;font-weight:bold}
@@ -31,10 +32,16 @@
 <header>デュエマ値段メモ</header>
 <main>
   <input id="search" placeholder="🔍 カード名・バージョンで検索" style="width:100%;box-sizing:border-box">
-  <div class="row">
-    <input id="newName" placeholder="新しいカード名">
-    <input id="newVer" placeholder="バージョン(任意)" style="flex:0.7">
-    <button onclick="addCard()">追加</button>
+  <div class="addbox">
+    <div class="row">
+      <input id="newName" placeholder="新しいカード名">
+      <input id="newVer" placeholder="バージョン(任意)" style="flex:0.7">
+    </div>
+    <div class="row">
+      <input id="newUrl" placeholder="公式URL・カード番号(任意)">
+      <button class="sub" onclick="pasteUrl()">📋 貼付</button>
+      <button onclick="addCard()">追加</button>
+    </div>
   </div>
   <div id="list"></div>
   <div class="tools">
@@ -89,14 +96,39 @@ function render(){
   if (window.sorter) sorter.option('disabled', !!q);
 }
 
+// カードページURL・カード番号・画像URLのどれからでも画像URLを作る
+function toImageUrl(s){
+  s = (s || '').trim();
+  if (!s) return null;
+  const m = s.match(/[?&]id=([A-Za-z0-9_-]+)/);
+  if (m) return IMG_BASE + m[1] + '.jpg';
+  if (/^https:\/\/\S+\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(s)) return s;
+  if (/^[A-Za-z0-9_-]+-[A-Za-z0-9_]+$/.test(s)) return IMG_BASE + s + '.jpg';
+  return null;
+}
+async function pasteUrl(){
+  try {
+    const t = await navigator.clipboard.readText();
+    document.getElementById('newUrl').value = t.trim();
+  } catch(e){
+    alert('貼り付けできませんでした。入力欄を長押しして貼り付けてください。');
+  }
+}
 function addCard(){
   const el = document.getElementById('newName');
   const vel = document.getElementById('newVer');
+  const uel = document.getElementById('newUrl');
   const name = el.value.trim();
   const ver = vel.value.trim();
-  if (!name) return;
-  cards.unshift({name, ver, prices: [], photo: null});
-  el.value = ''; vel.value = ''; save(); render();
+  const raw = uel.value.trim();
+  if (!name) { alert('カード名を入力してください'); return; }
+  let photo = null;
+  if (raw) {
+    photo = toImageUrl(raw);
+    if (!photo) { alert('公式URLかカード番号の形が正しくありません'); return; }
+  }
+  cards.unshift({name, ver, prices: [], photo});
+  el.value = ''; vel.value = ''; uel.value = ''; save(); render();
 }
 function setVer(i){
   const v = prompt('バージョン(例:通常版、シークレット、プロモ など)', cards[i].ver || '');
@@ -126,16 +158,6 @@ function setPhoto(i, input){
     save(); render();
   };
   img.src = URL.createObjectURL(file);
-}
-// カードページURL・カード番号・画像URLのどれからでも画像URLを作る
-function toImageUrl(s){
-  s = (s || '').trim();
-  if (!s) return null;
-  const m = s.match(/[?&]id=([A-Za-z0-9_-]+)/);
-  if (m) return IMG_BASE + m[1] + '.jpg';
-  if (/^https:\/\/\S+\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(s)) return s;
-  if (/^[A-Za-z0-9_-]+-[A-Za-z0-9_]+$/.test(s)) return IMG_BASE + s + '.jpg';
-  return null;
 }
 async function setImageUrl(i){
   let clip = '';
