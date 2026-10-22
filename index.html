@@ -45,6 +45,7 @@
 </main>
 <script>
 const KEY = 'dmPriceMemo';
+const IMG_BASE = 'https://dm.takaratomy.co.jp/wp-content/card/cardimage/';
 let cards = JSON.parse(localStorage.getItem(KEY) || '[]');
 const save = () => {
   try { localStorage.setItem(KEY, JSON.stringify(cards)); }
@@ -78,7 +79,7 @@ function render(){
       <div class="tools">
         <button class="sub" onclick="document.getElementById('f${i}').click()">📷 写真</button>
         <input type="file" id="f${i}" accept="image/*" hidden onchange="setPhoto(${i}, this)">
-        <button class="sub" onclick="setImageUrl(${i})">🔗 画像URL</button>
+        <button class="sub" onclick="setImageUrl(${i})">🔗 公式画像</button>
         <button class="sub" onclick="setVer(${i})">✏️ バージョン</button>
         <button class="sub" onclick="openOfficial(${i})">公式で検索</button>
         <button class="sub" onclick="delCard(${i})">削除</button>
@@ -126,13 +127,26 @@ function setPhoto(i, input){
   };
   img.src = URL.createObjectURL(file);
 }
-function setImageUrl(i){
-  const url = prompt('公式サイトのカード画像を長押しして「画像アドレスをコピー」し、ここに貼り付けてください', '');
-  if (url === null) return;
-  const u = url.trim();
-  if (u === '') { cards[i].photo = null; save(); render(); return; }
-  if (!/^https:\/\//.test(u)) { alert('https:// で始まるURLを貼り付けてください'); return; }
-  cards[i].photo = u; save(); render();
+// カードページURL・カード番号・画像URLのどれからでも画像URLを作る
+function toImageUrl(s){
+  s = (s || '').trim();
+  if (!s) return null;
+  const m = s.match(/[?&]id=([A-Za-z0-9_-]+)/);
+  if (m) return IMG_BASE + m[1] + '.jpg';
+  if (/^https:\/\/\S+\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(s)) return s;
+  if (/^[A-Za-z0-9_-]+-[A-Za-z0-9_]+$/.test(s)) return IMG_BASE + s + '.jpg';
+  return null;
+}
+async function setImageUrl(i){
+  let clip = '';
+  try { clip = await navigator.clipboard.readText(); } catch(e){}
+  const def = toImageUrl(clip) ? clip.trim() : '';
+  const input = prompt('公式のカードページのURLを貼り付けてください\n(カード番号 例: dmsd01-004 でもOK。空欄でOKを押すと画像を消します)', def);
+  if (input === null) return;
+  if (input.trim() === '') { cards[i].photo = null; save(); render(); return; }
+  const url = toImageUrl(input);
+  if (!url) { alert('カードページのURLかカード番号を貼り付けてください'); return; }
+  cards[i].photo = url; save(); render();
 }
 function openOfficial(i){
   const q = encodeURIComponent('site:dm.takaratomy.co.jp/card ' + cards[i].name);
@@ -147,8 +161,11 @@ function exportData(){
 function importData(input){
   const file = input.files[0]; if (!file) return;
   file.text().then(t => {
-    try { cards = JSON.parse(t); save(); render(); alert('読み込みました'); }
-    catch(e){ alert('ファイルが正しくありません'); }
+    try {
+      const d = JSON.parse(t);
+      cards = Array.isArray(d) ? d : (d.cards || []);
+      save(); render(); alert('読み込みました');
+    } catch(e){ alert('ファイルが正しくありません'); }
   });
 }
 
